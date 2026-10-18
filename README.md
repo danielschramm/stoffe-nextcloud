@@ -31,10 +31,7 @@ erscheinen automatisch mit ihren Angaben.
 
 ## Installation
 
-1. Release-Archiv nach `custom_apps/` (bzw. `apps/`) entpacken, sodass `custom_apps/stoffe/` entsteht.
-   Aus dem Quellcode: Repository nach `custom_apps/stoffe` klonen und `npm ci && npm run build` ausführen.
-2. `sudo -u www-data php occ app:enable stoffe`
-3. In der Nextcloud oben in der Leiste „Stoffe“ öffnen.
+Siehe [INSTALLATION.md](INSTALLATION.md), auch für Nextcloud All-in-One (AIO).
 
 Getestet mit Nextcloud 32 (unterstützt laut `info.xml`: 30–33).
 
