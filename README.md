@@ -43,7 +43,15 @@ Getestet mit Nextcloud 32 und 35 (unterstützt laut `info.xml`: 30–35).
 npm ci
 npm run build      # erzeugt js/ und css/
 npm run watch      # baut bei Änderungen neu
+./scripts/package.sh   # erzeugt build/stoffe-<version>.tar.gz
 ```
+
+## Release
+
+`<version>` in `appinfo/info.xml` (und `package.json`) erhöhen, auf `main`
+bringen und einen passenden Tag pushen, z. B. `git tag v0.3.1 && git push origin v0.3.1`.
+Der GitHub-Workflow `Release` baut dann das Archiv und veröffentlicht es als
+Release. Passt der Tag nicht zur Version in `info.xml`, bricht er ab.
 
 ## Aufbau
 

@@ -6,7 +6,9 @@ Bei Nextcloud AIO läuft Nextcloud im Docker-Container `nextcloud-aio-nextcloud`
 Der Ordner `custom_apps` liegt dort im Datenvolumen und bleibt bei Updates
 von AIO erhalten. Alle Befehle werden auf dem Docker-Host ausgeführt.
 
-1. Das Release-Archiv `stoffe-<version>.tar.gz` auf den Docker-Host laden und
+1. Das Release-Archiv `stoffe-<version>.tar.gz` von den
+   [Releases](https://github.com/danielschramm/stoffe-nextcloud/releases)
+   auf den Docker-Host laden und
    prüfen, dass oben der Ordner `stoffe/` liegt:
 
    ```bash
