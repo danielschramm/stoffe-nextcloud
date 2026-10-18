@@ -10,19 +10,19 @@ von AIO erhalten. Alle Befehle werden auf dem Docker-Host ausgeführt.
    prüfen, dass oben der Ordner `stoffe/` liegt:
 
    ```bash
-   tar -tzf stoffe-0.2.0.tar.gz | head
+   tar -tzf stoffe-0.3.0.tar.gz | head
    ```
 
 2. Das Archiv in den Container kopieren:
 
    ```bash
-   sudo docker cp stoffe-0.2.0.tar.gz nextcloud-aio-nextcloud:/tmp/
+   sudo docker cp stoffe-0.3.0.tar.gz nextcloud-aio-nextcloud:/tmp/
    ```
 
 3. Das Archiv in `custom_apps` entpacken:
 
    ```bash
-   sudo docker exec -u www-data nextcloud-aio-nextcloud tar -xzf /tmp/stoffe-0.2.0.tar.gz -C /var/www/html/custom_apps/
+   sudo docker exec -u www-data nextcloud-aio-nextcloud tar -xzf /tmp/stoffe-0.3.0.tar.gz -C /var/www/html/custom_apps/
    ```
 
 4. Die App aktivieren:
@@ -37,7 +37,7 @@ von AIO erhalten. Alle Befehle werden auf dem Docker-Host ausgeführt.
 6. Optional das Archiv im Container wieder löschen:
 
    ```bash
-   sudo docker exec nextcloud-aio-nextcloud rm /tmp/stoffe-0.2.0.tar.gz
+   sudo docker exec nextcloud-aio-nextcloud rm /tmp/stoffe-0.3.0.tar.gz
    ```
 
 ### Update auf eine neue Version

@@ -4,8 +4,8 @@
     <id>stoffe</id>
     <name>Stoffe</name>
     <summary>Stoff-Fotos als Galerie mit Lagerort, Preis, Stoffart und Kategorie</summary>
-    <description><![CDATA[Lade Fotos deiner Stoffe hoch und pflege Lagerort (Raum, Schrank, Fach), Preis, Stoffart, Kategorie und Kommentar. Die Angaben werden ausschließlich als XMP direkt im JPEG gespeichert, ohne eigene Datenbank. Die Fotos liegen im Ordner „Stoffe“ deiner Nextcloud-Dateien. Die Galerie ist nach allen Angaben filterbar.]]></description>
-    <version>0.2.0</version>
+    <description><![CDATA[Lade Fotos deiner Stoffe hoch und pflege Lagerort (Raum, Schrank, Fach), Preis, Abmessung (Länge, Breite), Reststück, Stoffart, Kategorie und Kommentar. Die Angaben werden ausschließlich als XMP direkt im JPEG gespeichert, ohne eigene Datenbank. Die Fotos liegen im Ordner „Stoffe“ deiner Nextcloud-Dateien. Die Galerie ist nach allen Angaben filterbar.]]></description>
+    <version>0.3.0</version>
     <licence>MIT</licence>
     <author>Daniel Schramm</author>
     <namespace>Stoffe</namespace>
@@ -14,7 +14,7 @@
     <bugs>https://github.com/danielschramm/stoffe-nextcloud/issues</bugs>
     <repository type="git">https://github.com/danielschramm/stoffe-nextcloud.git</repository>
     <dependencies>
-        <nextcloud min-version="30" max-version="33"/>
+        <nextcloud min-version="30" max-version="35"/>
     </dependencies>
     <navigations>
         <navigation>

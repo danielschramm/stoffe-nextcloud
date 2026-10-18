@@ -6,12 +6,14 @@ Seitenleiste rechts pflegt man zu jedem Foto:
 
 - **Lagerort**: Raum, Schrank, Fach (bei neuen Fotos mit der letzten Eingabe vorausgefüllt)
 - **Preis** in Euro
+- **Abmessung**: Länge und Breite in cm
+- **Reststück**: ja oder nein
 - **Stoffart** aus einer Liste gängiger Stoffarten
 - **Kategorie** aus einer eigenen, änderbaren Liste (Start: Hosen, Unterwäsche, T-Shirts, Kinder)
 - **Kommentar** als Freitext
 
 Die Galerie ist nach allen Angaben filterbar (Suche, Lagerort, Stoffart,
-Kategorie, Preisbereich, „ohne Angabe“).
+Kategorie, Preis-, Längen- und Breitenbereich, Reststück, „ohne Angabe“).
 
 ## Wo die Daten liegen
 
@@ -33,7 +35,7 @@ erscheinen automatisch mit ihren Angaben.
 
 Siehe [INSTALLATION.md](INSTALLATION.md), auch für Nextcloud All-in-One (AIO).
 
-Getestet mit Nextcloud 32 (unterstützt laut `info.xml`: 30–33).
+Getestet mit Nextcloud 32 und 35 (unterstützt laut `info.xml`: 30–35).
 
 ## Entwicklung
 

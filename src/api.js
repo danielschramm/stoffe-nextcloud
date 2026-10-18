@@ -3,7 +3,7 @@ import { generateUrl } from '@nextcloud/router'
 
 const api = (path) => generateUrl('/apps/stoffe/api' + path)
 
-export const FIELDS = ['room', 'cabinet', 'shelf', 'price', 'fabricType', 'category', 'comment']
+export const FIELDS = ['room', 'cabinet', 'shelf', 'price', 'length', 'width', 'remnant', 'fabricType', 'category', 'comment']
 
 export async function listFabrics() {
 	const { data } = await axios.get(api('/fabrics'))
@@ -63,6 +63,17 @@ export function filesUrl(fabric) {
 
 export function formatPrice(price) {
 	return price === '' ? '' : Number(price).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
+}
+
+export function formatSize(fabric) {
+	const fmt = (v) => Number(v).toLocaleString('de-DE')
+	if (fabric.length && fabric.width) {
+		return `${fmt(fabric.length)} × ${fmt(fabric.width)} cm`
+	}
+	if (fabric.length || fabric.width) {
+		return fabric.length ? `${fmt(fabric.length)} cm lang` : `${fmt(fabric.width)} cm breit`
+	}
+	return ''
 }
 
 export function displayName(fabric) {

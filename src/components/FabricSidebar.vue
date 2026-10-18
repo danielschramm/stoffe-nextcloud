@@ -20,6 +20,25 @@
 				:error="!priceValid"
 				:helper-text="priceValid ? '' : 'Bitte eine Zahl eingeben, z. B. 12,50'" />
 
+			<fieldset class="sidebar__group">
+				<legend>Abmessung</legend>
+				<div class="sidebar__row">
+					<NcTextField v-model="form.length"
+						label="Länge (cm)"
+						inputmode="decimal"
+						:error="!numberValid(form.length)"
+						:helper-text="numberValid(form.length) ? '' : 'Zahl, z. B. 150 oder 37,5'" />
+					<NcTextField v-model="form.width"
+						label="Breite (cm)"
+						inputmode="decimal"
+						:error="!numberValid(form.width)"
+						:helper-text="numberValid(form.width) ? '' : 'Zahl, z. B. 140 oder 37,5'" />
+				</div>
+				<NcCheckboxRadioSwitch v-model="form.remnant" type="switch">
+					Reststück
+				</NcCheckboxRadioSwitch>
+			</fieldset>
+
 			<NcSelect v-model="form.fabricType"
 				input-label="Stoffart"
 				:options="fabricTypes"
@@ -36,14 +55,14 @@
 			<NcTextArea v-model="form.comment" label="Kommentar" resize="vertical" rows="4" />
 
 			<div class="sidebar__actions">
-				<NcButton type="submit" variant="primary" :disabled="saving || !priceValid">
+				<NcButton type="submit" variant="primary" :disabled="saving || !formValid">
 					<template #icon>
 						<NcLoadingIcon v-if="saving" :size="20" />
 						<ContentSave v-else :size="20" />
 					</template>
 					Speichern
 				</NcButton>
-				<NcButton v-if="hasNext" :disabled="saving || !priceValid" @click="save(true)">
+				<NcButton v-if="hasNext" :disabled="saving || !formValid" @click="save(true)">
 					<template #icon>
 						<ArrowRight :size="20" />
 					</template>
@@ -71,6 +90,7 @@
 <script>
 import NcAppSidebar from '@nextcloud/vue/components/NcAppSidebar'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
@@ -84,7 +104,7 @@ import { displayName, FIELDS, filesUrl, previewUrl } from '../api.js'
 
 export default {
 	name: 'FabricSidebar',
-	components: { NcAppSidebar, NcButton, NcLoadingIcon, NcNoteCard, NcSelect, NcTextArea, NcTextField, ArrowRight, ContentSave, Delete, Folder },
+	components: { NcAppSidebar, NcButton, NcCheckboxRadioSwitch, NcLoadingIcon, NcNoteCard, NcSelect, NcTextArea, NcTextField, ArrowRight, ContentSave, Delete, Folder },
 
 	props: {
 		fabric: { type: Object, required: true },
@@ -106,6 +126,10 @@ export default {
 			const price = String(this.form.price ?? '').replace(/[€\s]/g, '')
 			return price === '' || /^\d+([.,]\d{1,2})?$/.test(price)
 		},
+
+		formValid() {
+			return this.priceValid && this.numberValid(this.form.length) && this.numberValid(this.form.width)
+		},
 	},
 
 	watch: {
@@ -118,7 +142,10 @@ export default {
 					return
 				}
 				this.form = Object.fromEntries(FIELDS.map((f) => [f, fabric[f] || '']))
-				this.form.price = this.form.price.replace('.', ',')
+				for (const key of ['price', 'length', 'width']) {
+					this.form[key] = this.form[key].replace('.', ',')
+				}
+				this.form.remnant = fabric.remnant === 'true'
 				// An empty storage location starts with the last one entered.
 				this.prefilled = !fabric.room && !fabric.cabinet && !fabric.shelf
 					&& Object.values(this.lastLocation).some(Boolean)
@@ -134,11 +161,17 @@ export default {
 		filesUrl,
 		displayName,
 
+		numberValid(value) {
+			const number = String(value ?? '').trim()
+			return number === '' || /^\d+([.,]\d)?$/.test(number)
+		},
+
 		save(next) {
 			const values = { ...this.form }
 			for (const key of FIELDS) {
 				values[key] = values[key] ?? ''
 			}
+			values.remnant = this.form.remnant ? 'true' : 'false'
 			this.$emit('save', { values, next })
 		},
 	},
@@ -169,6 +202,11 @@ export default {
 
 .sidebar__hint {
 	margin: 0 !important;
+}
+
+.sidebar__row {
+	display: flex;
+	gap: 8px;
 }
 
 .sidebar__actions {

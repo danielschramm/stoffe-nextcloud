@@ -28,7 +28,7 @@ class FabricService {
 		private LoggerInterface $logger,
 		ICacheFactory $cacheFactory,
 	) {
-		$this->cache = $cacheFactory->createLocal('stoffe-xmp');
+		$this->cache = $cacheFactory->createLocal('stoffe-xmp-v2');
 	}
 
 	/**
@@ -157,7 +157,21 @@ class FabricService {
 			}
 			$values['price'] = number_format((float)$price, 2, '.', '');
 		}
+		foreach (['length' => 'Die Länge', 'width' => 'Die Breite'] as $field => $label) {
+			if ($values[$field] !== '') {
+				$number = str_replace(',', '.', preg_replace('/[^\d,.]/', '', $values[$field]) ?? '');
+				if (!is_numeric($number)) {
+					throw new \InvalidArgumentException($label . ' ist keine gültige Zahl.');
+				}
+				$values[$field] = rtrim(rtrim(number_format((float)$number, 1, '.', ''), '0'), '.');
+			}
+		}
+		$values['remnant'] = $this->isTrue($values['remnant']) ? 'true' : 'false';
 		return $values;
+	}
+
+	private function isTrue(string $value): bool {
+		return in_array(strtolower($value), ['true', '1', 'ja', 'yes', 'on'], true);
 	}
 
 	private function getFile(string $userId, int $id): File {
@@ -179,6 +193,9 @@ class FabricService {
 	 * @return array<string,mixed>
 	 */
 	private function serialize(File $file, array $values): array {
+		// Photos saved before a field existed simply don't have it yet.
+		$values = [...array_fill_keys(XmpService::FIELDS, ''), ...$values];
+		$values['remnant'] = $this->isTrue($values['remnant']) ? 'true' : 'false';
 		return [
 			'id' => $file->getId(),
 			'name' => $file->getName(),

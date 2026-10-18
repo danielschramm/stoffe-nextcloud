@@ -13,7 +13,7 @@ namespace OCA\Stoffe\Service;
  */
 class XmpService {
 	public const NS = 'http://ns.stoffe-app.de/1.0/';
-	public const FIELDS = ['room', 'cabinet', 'shelf', 'price', 'fabricType', 'category', 'comment'];
+	public const FIELDS = ['room', 'cabinet', 'shelf', 'price', 'length', 'width', 'remnant', 'fabricType', 'category', 'comment'];
 
 	private const NS_X = 'adobe:ns:meta/';
 	private const NS_RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';

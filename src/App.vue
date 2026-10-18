@@ -24,6 +24,17 @@
 						<NcTextField v-model="filter.priceMax" label="bis" inputmode="decimal" />
 					</div>
 
+					<h3 class="filters__caption">Abmessung (cm)</h3>
+					<div class="filters__price">
+						<NcTextField v-model="filter.lengthMin" label="Länge von" inputmode="decimal" />
+						<NcTextField v-model="filter.lengthMax" label="Länge bis" inputmode="decimal" />
+					</div>
+					<div class="filters__price">
+						<NcTextField v-model="filter.widthMin" label="Breite von" inputmode="decimal" />
+						<NcTextField v-model="filter.widthMax" label="Breite bis" inputmode="decimal" />
+					</div>
+					<NcSelect v-model="filter.remnant" input-label="Reststück" :options="['Ja', 'Nein']" placeholder="Alle" />
+
 					<NcButton v-if="filterActive" variant="tertiary" wide @click="resetFilter">
 						<template #icon>
 							<FilterRemove :size="20" />
@@ -96,9 +107,10 @@
 						<button class="stoffe__thumb" :title="fabric.name" @click="selectedId = fabric.id">
 							<img :src="previewUrl(fabric)" :alt="fabric.name" loading="lazy">
 							<span v-if="fabric.price" class="stoffe__price">{{ formatPrice(fabric.price) }}</span>
+							<span v-if="fabric.remnant === 'true'" class="stoffe__badge">Reststück</span>
 						</button>
 						<span class="stoffe__name">{{ fabric.fabricType || displayName(fabric) }}</span>
-						<span class="stoffe__meta">{{ [fabric.category, location(fabric)].filter(Boolean).join(' · ') || 'Noch keine Angaben' }}</span>
+						<span class="stoffe__meta">{{ [fabric.category, formatSize(fabric), location(fabric)].filter(Boolean).join(' · ') || 'Noch keine Angaben' }}</span>
 					</li>
 				</ul>
 			</div>
@@ -135,7 +147,7 @@ import Upload from 'vue-material-design-icons/Upload.vue'
 import CategoryManager from './components/CategoryManager.vue'
 import FabricSidebar from './components/FabricSidebar.vue'
 import * as api from './api.js'
-import { displayName, formatPrice, previewUrl } from './api.js'
+import { displayName, formatPrice, formatSize, previewUrl } from './api.js'
 
 import '@nextcloud/dialogs/style.css'
 
@@ -144,7 +156,19 @@ const EMPTY = '(ohne Angabe)'
 
 const emptyFilter = () => ({
 	text: '', room: null, cabinet: null, shelf: null, fabricType: null, category: null, priceMin: '', priceMax: '',
+	lengthMin: '', lengthMax: '', widthMin: '', widthMax: '', remnant: null,
 })
+
+// Empty bounds match everything; a set bound excludes photos without a value.
+const inRange = (value, min, max) => {
+	const lo = toNumber(min)
+	const hi = toNumber(max)
+	if (lo === null && hi === null) {
+		return true
+	}
+	const n = toNumber(value)
+	return n !== null && (lo === null || n >= lo) && (hi === null || n <= hi)
+}
 
 const toNumber = (value) => {
 	const n = parseFloat(String(value).replace(',', '.'))
@@ -180,8 +204,6 @@ export default {
 		visible() {
 			const f = this.filter
 			const text = f.text.trim().toLowerCase()
-			const min = toNumber(f.priceMin)
-			const max = toNumber(f.priceMax)
 			const matches = (fabric, key) => f[key] === null || f[key] === undefined
 				|| (f[key] === EMPTY ? fabric[key] === '' : fabric[key] === f[key])
 
@@ -189,11 +211,12 @@ export default {
 				if (!['room', 'cabinet', 'shelf', 'fabricType', 'category'].every((key) => matches(fabric, key))) {
 					return false
 				}
-				const price = toNumber(fabric.price)
-				if ((min !== null || max !== null) && price === null) {
+				if (!inRange(fabric.price, f.priceMin, f.priceMax)
+					|| !inRange(fabric.length, f.lengthMin, f.lengthMax)
+					|| !inRange(fabric.width, f.widthMin, f.widthMax)) {
 					return false
 				}
-				if ((min !== null && price < min) || (max !== null && price > max)) {
+				if (f.remnant && (fabric.remnant === 'true') !== (f.remnant === 'Ja')) {
 					return false
 				}
 				if (text) {
@@ -235,6 +258,7 @@ export default {
 	methods: {
 		previewUrl,
 		formatPrice,
+		formatSize,
 		displayName,
 
 		location(fabric) {
@@ -473,6 +497,18 @@ export default {
 	background: var(--color-main-background);
 	color: var(--color-main-text);
 	font-weight: bold;
+}
+
+.stoffe__badge {
+	position: absolute;
+	inset-inline-start: 6px;
+	top: 6px;
+	padding: 2px 8px;
+	border-radius: var(--border-radius-pill);
+	background: var(--color-warning);
+	color: var(--color-warning-text, #000);
+	font-weight: bold;
+	font-size: 0.85em;
 }
 
 .stoffe__name,
