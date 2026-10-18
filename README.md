@@ -13,7 +13,7 @@ Seitenleiste rechts pflegt man zu jedem Foto:
 - **Kommentar** als Freitext
 
 Die Galerie ist nach allen Angaben filterbar (Suche, Lagerort, Stoffart,
-Kategorie, Preis-, Längen- und Breitenbereich, Reststück, „ohne Angabe“).
+Kategorie, Preisbereich, Mindestlänge und -breite, Reststück, „ohne Angabe“).
 
 ## Wo die Daten liegen
 

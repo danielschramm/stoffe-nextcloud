@@ -26,12 +26,8 @@
 
 					<h3 class="filters__caption">Abmessung (cm)</h3>
 					<div class="filters__price">
-						<NcTextField v-model="filter.lengthMin" label="Länge von" inputmode="decimal" />
-						<NcTextField v-model="filter.lengthMax" label="Länge bis" inputmode="decimal" />
-					</div>
-					<div class="filters__price">
-						<NcTextField v-model="filter.widthMin" label="Breite von" inputmode="decimal" />
-						<NcTextField v-model="filter.widthMax" label="Breite bis" inputmode="decimal" />
+						<NcTextField v-model="filter.length" label="Länge mind." inputmode="decimal" />
+						<NcTextField v-model="filter.width" label="Breite mind." inputmode="decimal" />
 					</div>
 					<NcSelect v-model="filter.remnant" input-label="Reststück" :options="['Ja', 'Nein']" placeholder="Alle" />
 
@@ -156,7 +152,7 @@ const EMPTY = '(ohne Angabe)'
 
 const emptyFilter = () => ({
 	text: '', room: null, cabinet: null, shelf: null, fabricType: null, category: null, priceMin: '', priceMax: '',
-	lengthMin: '', lengthMax: '', widthMin: '', widthMax: '', remnant: null,
+	length: '', width: '', remnant: null,
 })
 
 // Empty bounds match everything; a set bound excludes photos without a value.
@@ -212,8 +208,9 @@ export default {
 					return false
 				}
 				if (!inRange(fabric.price, f.priceMin, f.priceMax)
-					|| !inRange(fabric.length, f.lengthMin, f.lengthMax)
-					|| !inRange(fabric.width, f.widthMin, f.widthMax)) {
+					// A piece fits if it is at least as long and as wide as asked for.
+					|| !inRange(fabric.length, f.length, '')
+					|| !inRange(fabric.width, f.width, '')) {
 					return false
 				}
 				if (f.remnant && (fabric.remnant === 'true') !== (f.remnant === 'Ja')) {
