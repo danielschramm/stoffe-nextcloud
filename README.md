@@ -53,6 +53,9 @@ bringen und einen passenden Tag pushen, z. B. `git tag v0.3.1 && git push origin
 Der GitHub-Workflow `Release` baut dann das Archiv und veröffentlicht es als
 Release. Passt der Tag nicht zur Version in `info.xml`, bricht er ab.
 
+Ohne eigenen Tag geht es auch über GitHub: unter *Actions → Release → Run workflow*.
+Der Workflow setzt dann den Tag `v<version>` aus `info.xml` selbst.
+
 ## Aufbau
 
 - `appinfo/` – App-Metadaten und Routen

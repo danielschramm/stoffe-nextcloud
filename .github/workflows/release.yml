@@ -1,11 +1,14 @@
 name: Release
 
-# Push a tag like v0.3.1 (matching <version> in appinfo/info.xml) to build the
-# app archive and publish it as a GitHub release.
+# Builds the app archive and publishes it as a GitHub release, either
+# - by pushing a tag like v0.3.1 that matches <version> in appinfo/info.xml, or
+# - by starting this workflow by hand ("Run workflow"); it then tags the
+#   current commit with the version from info.xml.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,10 +24,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Check tag matches info.xml version
+      - name: Determine version
         run: |
           version=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml | head -1)
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match info.xml version $version"
             exit 1
           fi
@@ -37,7 +40,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "build/stoffe-$VERSION.tar.gz" \
+          gh release create "v$VERSION" "build/stoffe-$VERSION.tar.gz" \
+            --target "$GITHUB_SHA" \
             --title "Stoffe $VERSION" \
-            --notes "Installation: siehe [INSTALLATION.md](https://github.com/${{ github.repository }}/blob/$GITHUB_REF_NAME/INSTALLATION.md). Archiv nach custom_apps/ entpacken und mit occ app:enable stoffe aktivieren." \
-            --verify-tag
+            --notes "Installation: siehe [INSTALLATION.md](https://github.com/${{ github.repository }}/blob/v$VERSION/INSTALLATION.md). Archiv nach custom_apps/ entpacken und mit occ app:enable stoffe aktivieren."
