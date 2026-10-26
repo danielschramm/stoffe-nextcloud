@@ -81,6 +81,9 @@
 					Speichern und weiter
 				</NcButton>
 			</div>
+			<DetailImages :fabric="fabric"
+				:folder-path="folderPath"
+				@update:count="$emit('update:detailCount', $event)" />
 			<div class="sidebar__actions">
 				<NcButton variant="tertiary" :href="filesUrl(fabric, folderPath)">
 					<template #icon>
@@ -112,11 +115,12 @@ import ArrowRight from 'vue-material-design-icons/ArrowRight.vue'
 import ContentSave from 'vue-material-design-icons/ContentSave.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
 import Folder from 'vue-material-design-icons/Folder.vue'
+import DetailImages from './DetailImages.vue'
 import { displayName, FIELDS, filesUrl, previewUrl } from '../api.js'
 
 export default {
 	name: 'FabricSidebar',
-	components: { NcAppSidebar, NcButton, NcCheckboxRadioSwitch, NcLoadingIcon, NcNoteCard, NcSelect, NcTextArea, NcTextField, ArrowRight, ContentSave, Delete, Folder },
+	components: { NcAppSidebar, NcButton, NcCheckboxRadioSwitch, NcLoadingIcon, NcNoteCard, NcSelect, NcTextArea, NcTextField, ArrowRight, ContentSave, Delete, Folder, DetailImages },
 
 	props: {
 		fabric: { type: Object, required: true },
@@ -128,7 +132,7 @@ export default {
 		folderPath: { type: String, default: '/Stoffe' },
 	},
 
-	emits: ['close', 'save', 'delete'],
+	emits: ['close', 'save', 'delete', 'update:detailCount'],
 
 	data() {
 		return { form: {}, title: '', prefilled: false }

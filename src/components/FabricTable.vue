@@ -113,6 +113,7 @@ const COLUMNS = [
 	{ key: 'width', label: 'Breite (cm)', type: 'number' },
 	{ key: 'remnant', label: 'Reststück', type: 'bool', value: (f) => (f.remnant === 'true' ? 'Ja' : 'Nein') },
 	{ key: 'comment', label: 'Kommentar', type: 'text' },
+	{ key: 'detailCount', label: 'Detailbilder', type: 'number', value: (f) => f.detailCount || 0 },
 	{ key: 'mtime', label: 'Geändert', type: 'date', value: (f) => f.mtime, format: (v) => new Date(v * 1000).toLocaleDateString('de-DE') },
 ]
 

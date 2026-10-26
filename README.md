@@ -17,6 +17,21 @@ Die Galerie ist nach allen Angaben filterbar (Suche in Titel und Kommentar,
 Lagerort, Stoffart, Kategorie, Preisbereich, Mindestlänge und -breite,
 Reststück, „ohne Angabe“).
 
+## Detailbilder
+
+Hat ein Stoff mehrere Motive, lassen sich in der Seitenleiste unter
+**Detailbilder** beliebig viele Nahaufnahmen (JPEG) hinzufügen, per Knopf oder
+indem man sie auf den Bereich zieht. Ein Klick öffnet das Bild groß, mit
+Blättern, Löschen und „In Dateien öffnen“. Galerie-Kacheln zeigen die Anzahl,
+die Tabelle hat dafür die Spalte „Detailbilder“.
+
+Die Detailbilder liegen in einem Ordner neben dem Foto, der so heißt wie das
+Foto ohne Endung: zu `Rosen.jpg` gehört der Ordner `Rosen/`. Er entsteht mit
+dem ersten Detailbild. Wird der Titel geändert, benennt die App den Ordner mit
+um; wird der Stoff gelöscht, wandert der Ordner mit in den Papierkorb.
+Unterordner erscheinen nie als eigene Stoffe. Man kann Detailbilder auch
+direkt in Nextcloud-Dateien in diesen Ordner legen.
+
 ## Tabellenansicht
 
 Oben rechts lässt sich zwischen Galerie und Tabelle wechseln. In der Tabelle:
@@ -36,7 +51,7 @@ die App zeigt: den eigenen „Stoffe“-Ordner, einen geteilten Ordner oder eine
 beliebigen anderen. Geteilte Ordner werden angeboten, wenn sie „Stoff“ im
 Namen tragen oder schon eine `.stoffe.json` enthalten.
 
-- Mit Bearbeitungsrecht kann man Angaben ändern, umbenennen und hochladen.
+- Mit Bearbeitungsrecht kann man Angaben ändern, umbenennen und Fotos sowie Detailbilder hochladen.
 - Mit Leserecht sieht man alles, kann aber nichts ändern; die App sagt das.
 - Die Kategorienliste gehört zum Ordner und gilt für alle, die ihn nutzen.
   Der letzte Lagerort und der gewählte Ordner sind pro Nutzer.
@@ -88,6 +103,7 @@ Der Workflow setzt dann den Tag `v<version>` aus `info.xml` selbst.
 - `appinfo/` – App-Metadaten und Routen
 - `lib/Service/XmpService.php` – XMP im JPEG lesen und schreiben
 - `lib/Service/FabricService.php` – Fotos auflisten, hochladen, Angaben speichern, Kategorien umbenennen
+- `lib/Service/DetailService.php` – Detailbilder im Ordner neben dem Foto
 - `lib/Service/PhotoFolder.php` – gewählter Ordner, eigene und geteilte Ordner
 - `lib/Service/SettingsService.php` – Kategorien (`.stoffe.json`) und letzter Lagerort
 - `lib/Controller/` – REST-API unter `/apps/stoffe/api/…`

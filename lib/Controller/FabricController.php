@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Stoffe\Controller;
 
 use OCA\Stoffe\AppInfo\Application;
+use OCA\Stoffe\Service\DetailService;
 use OCA\Stoffe\Service\FabricService;
 use OCA\Stoffe\Service\PhotoFolder;
 use OCP\AppFramework\Http;
@@ -19,6 +20,7 @@ class FabricController extends Controller {
 	public function __construct(
 		IRequest $request,
 		private FabricService $service,
+		private DetailService $details,
 		private PhotoFolder $photoFolder,
 		private ?string $userId,
 	) {
@@ -43,29 +45,7 @@ class FabricController extends Controller {
 
 	#[NoAdminRequired]
 	public function upload(): JSONResponse {
-		$files = $this->normalizeUploads($this->request->getUploadedFile('photos'));
-		if ($files === []) {
-			return new JSONResponse(['message' => 'Keine Datei empfangen.'], Http::STATUS_BAD_REQUEST);
-		}
-
-		$uploaded = [];
-		$errors = [];
-		foreach ($files as $file) {
-			if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
-				$errors[] = ['name' => $file['name'], 'message' => 'Upload fehlgeschlagen (Code ' . $file['error'] . ').'];
-				continue;
-			}
-			// Trust the detected content type, not the one sent by the browser.
-			$mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']) ?: '';
-			try {
-				$uploaded[] = $this->service->upload($this->userId, $file['name'], $file['tmp_name'], $mime);
-			} catch (\Throwable $e) {
-				$errors[] = ['name' => $file['name'], 'message' => $e->getMessage()];
-			}
-		}
-
-		$status = $uploaded === [] ? Http::STATUS_BAD_REQUEST : Http::STATUS_CREATED;
-		return new JSONResponse(['uploaded' => $uploaded, 'errors' => $errors], $status);
+		return $this->receiveUploads(fn (string $name, string $tmp, string $mime) => $this->service->upload($this->userId, $name, $tmp, $mime));
 	}
 
 	#[NoAdminRequired]
@@ -84,6 +64,60 @@ class FabricController extends Controller {
 			$this->service->delete($this->userId, $id);
 			return [];
 		});
+	}
+
+	#[NoAdminRequired]
+	public function details(int $id): JSONResponse {
+		return $this->respond(fn () => $this->details->list($this->service->getFile($this->userId, $id)));
+	}
+
+	#[NoAdminRequired]
+	public function uploadDetails(int $id): JSONResponse {
+		try {
+			$main = $this->service->getFile($this->userId, $id);
+		} catch (NotFoundException) {
+			return new JSONResponse(['message' => 'Foto nicht gefunden.'], Http::STATUS_NOT_FOUND);
+		}
+		return $this->receiveUploads(fn (string $name, string $tmp, string $mime) => $this->details->upload($main, $name, $tmp, $mime));
+	}
+
+	#[NoAdminRequired]
+	public function destroyDetail(int $id, int $detailId): JSONResponse {
+		return $this->respond(function () use ($id, $detailId) {
+			$this->details->delete($this->service->getFile($this->userId, $id), $detailId);
+			return [];
+		});
+	}
+
+	/**
+	 * Hands each uploaded file of "photos[]" to $store and collects the results.
+	 *
+	 * @param callable(string, string, string): array<string,mixed> $store gets name, temp path and detected type
+	 */
+	private function receiveUploads(callable $store): JSONResponse {
+		$files = $this->normalizeUploads($this->request->getUploadedFile('photos'));
+		if ($files === []) {
+			return new JSONResponse(['message' => 'Keine Datei empfangen.'], Http::STATUS_BAD_REQUEST);
+		}
+
+		$uploaded = [];
+		$errors = [];
+		foreach ($files as $file) {
+			if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
+				$errors[] = ['name' => $file['name'], 'message' => 'Upload fehlgeschlagen (Code ' . $file['error'] . ').'];
+				continue;
+			}
+			// Trust the detected content type, not the one sent by the browser.
+			$mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']) ?: '';
+			try {
+				$uploaded[] = $store($file['name'], $file['tmp_name'], $mime);
+			} catch (\Throwable $e) {
+				$errors[] = ['name' => $file['name'], 'message' => $e->getMessage()];
+			}
+		}
+
+		$status = $uploaded === [] ? Http::STATUS_BAD_REQUEST : Http::STATUS_CREATED;
+		return new JSONResponse(['uploaded' => $uploaded, 'errors' => $errors], $status);
 	}
 
 	/**
