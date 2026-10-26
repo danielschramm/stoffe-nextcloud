@@ -12,19 +12,19 @@ von AIO erhalten. Alle Befehle werden auf dem Docker-Host ausgeführt.
    prüfen, dass oben der Ordner `stoffe/` liegt:
 
    ```bash
-   tar -tzf stoffe-0.3.1.tar.gz | head
+   tar -tzf stoffe-0.4.0.tar.gz | head
    ```
 
 2. Das Archiv in den Container kopieren:
 
    ```bash
-   sudo docker cp stoffe-0.3.1.tar.gz nextcloud-aio-nextcloud:/tmp/
+   sudo docker cp stoffe-0.4.0.tar.gz nextcloud-aio-nextcloud:/tmp/
    ```
 
 3. Das Archiv in `custom_apps` entpacken:
 
    ```bash
-   sudo docker exec -u www-data nextcloud-aio-nextcloud tar -xzf /tmp/stoffe-0.3.1.tar.gz -C /var/www/html/custom_apps/
+   sudo docker exec -u www-data nextcloud-aio-nextcloud tar -xzf /tmp/stoffe-0.4.0.tar.gz -C /var/www/html/custom_apps/
    ```
 
 4. Die App aktivieren:
@@ -39,7 +39,7 @@ von AIO erhalten. Alle Befehle werden auf dem Docker-Host ausgeführt.
 6. Optional das Archiv im Container wieder löschen:
 
    ```bash
-   sudo docker exec nextcloud-aio-nextcloud rm /tmp/stoffe-0.3.1.tar.gz
+   sudo docker exec nextcloud-aio-nextcloud rm /tmp/stoffe-0.4.0.tar.gz
    ```
 
 ### Update auf eine neue Version
@@ -53,6 +53,19 @@ sudo docker exec -u www-data nextcloud-aio-nextcloud rm -rf /var/www/html/custom
 sudo docker exec -u www-data nextcloud-aio-nextcloud tar -xzf /tmp/stoffe-<version>.tar.gz -C /var/www/html/custom_apps/
 sudo docker exec -u www-data nextcloud-aio-nextcloud php occ upgrade
 ```
+
+Beim Update bleiben auch die persönlichen Einstellungen (gewählter Ordner,
+letzter Lagerort) erhalten; sie liegen in der Nextcloud-Datenbank als
+Nutzereinstellungen der App, nicht im App-Ordner.
+
+### Nextcloud-Versionen
+
+Die App ist für Nextcloud 30 bis 35 freigegeben (`max-version` in
+`appinfo/info.xml`). Die Meldung „Apps ohne kompatible Version“ auf der
+Update-Seite der Verwaltung ist für Stoffe harmlos: Nextcloud nennt dort jede
+App, die nicht aus dem App Store kommt. Ein Sprung auf Nextcloud 36 würde die
+App aber deaktivieren, bis eine Version mit höherer `max-version` installiert
+ist.
 
 ## Andere Nextcloud-Installationen
 
