@@ -6,13 +6,15 @@ namespace OCA\Stoffe\Service;
 
 use OCP\Files\File;
 use OCP\Files\NotFoundException;
+use OCP\Files\NotPermittedException;
 use OCP\ICache;
 use OCP\ICacheFactory;
 use Psr\Log\LoggerInterface;
 
 /**
- * Fabric photos are plain JPEG files (phone photos) in the user's "Stoffe" folder; the
- * fabric fields live only in the files' XMP data. The memory cache just
+ * Fabric photos are plain JPEG files (phone photos) in the collection folder
+ * (see PhotoFolder); the file name is the fabric's title and the fabric
+ * fields live only in the files' XMP data. The memory cache just
  * saves re-reading unchanged files and can be lost at any time.
  */
 class FabricService {
@@ -57,6 +59,9 @@ class FabricService {
 			throw new \RuntimeException('Upload konnte nicht gelesen werden.');
 		}
 		$folder = $this->photoFolder->get($userId);
+		if (!$folder->isCreatable()) {
+			throw new NotPermittedException('In diesem Ordner darfst du keine Fotos hochladen.');
+		}
 		try {
 			$file = $folder->newFile($folder->getNonExistingName($this->sanitizeName($originalName)), $content);
 		} finally {
@@ -73,6 +78,9 @@ class FabricService {
 	 */
 	public function update(string $userId, int $id, array $input, bool $rememberLocation = true): array {
 		$file = $this->getFile($userId, $id);
+		if (!$file->isUpdateable()) {
+			throw new NotPermittedException('Dieses Foto darfst du nur ansehen, nicht ändern.');
+		}
 		$values = $this->cleanValues($input);
 		$file->putContent($this->xmp->write($file->getContent(), $values));
 		$this->cache->set($this->cacheKey($file), $values, self::CACHE_TTL);
@@ -82,13 +90,66 @@ class FabricService {
 		}
 		$categories = $this->settings->getCategories($userId);
 		if ($values['category'] !== '' && !in_array($values['category'], $categories, true)) {
-			$this->settings->setCategories($userId, [...$categories, $values['category']]);
+			try {
+				$this->settings->setCategories($userId, [...$categories, $values['category']]);
+			} catch (NotPermittedException $e) {
+				// Read-only settings file in a shared folder: the photo keeps its category anyway.
+				$this->logger->info('Could not add category to list', ['exception' => $e]);
+			}
 		}
 		return $this->serialize($file, $values);
 	}
 
+	/**
+	 * Renames the photo; the file name (without extension) is the fabric's title.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function rename(string $userId, int $id, string $title): array {
+		$file = $this->getFile($userId, $id);
+		$title = trim(preg_replace('/[\x00-\x1f\/\\\\:*?"<>|]+/u', ' ', $title) ?? '');
+		$title = preg_replace('/\s+/u', ' ', $title) ?? '';
+		if ($title === '' || $title[0] === '.') {
+			throw new \InvalidArgumentException('Bitte einen Titel eingeben.');
+		}
+		if (mb_strlen($title) > 200) {
+			throw new \InvalidArgumentException('Der Titel ist zu lang (höchstens 200 Zeichen).');
+		}
+		$extension = pathinfo($file->getName(), PATHINFO_EXTENSION) ?: 'jpg';
+		$newName = $title . '.' . $extension;
+		if ($newName === $file->getName()) {
+			return $this->serialize($file, $this->readValues($file));
+		}
+		$parent = $file->getParent();
+		if (!$file->isUpdateable() || !$parent->isCreatable()) {
+			throw new NotPermittedException('Dieses Foto darfst du nicht umbenennen.');
+		}
+		// A different spelling of the same name is fine, another photo's name is not.
+		if (strcasecmp($newName, $file->getName()) !== 0 && $this->nameTaken($parent, $newName)) {
+			throw new \InvalidArgumentException('Es gibt schon einen Stoff mit dem Titel „' . $title . '“.');
+		}
+		$renamed = $file->move($parent->getPath() . '/' . $newName);
+		if (!$renamed instanceof File) {
+			throw new \RuntimeException('Umbenennen fehlgeschlagen.');
+		}
+		return $this->serialize($renamed, $this->readValues($renamed));
+	}
+
 	public function delete(string $userId, int $id): void {
-		$this->getFile($userId, $id)->delete();
+		$file = $this->getFile($userId, $id);
+		if (!$file->isDeletable()) {
+			throw new NotPermittedException('Dieses Foto darfst du nicht löschen.');
+		}
+		$file->delete();
+	}
+
+	private function nameTaken(\OCP\Files\Folder $folder, string $name): bool {
+		foreach ($folder->getDirectoryListing() as $node) {
+			if (strcasecmp($node->getName(), $name) === 0) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -202,6 +263,8 @@ class FabricService {
 			'mime' => $file->getMimetype(),
 			'size' => $file->getSize(),
 			'mtime' => $file->getMTime(),
+			'canEdit' => $file->isUpdateable(),
+			'canDelete' => $file->isDeletable(),
 			...$values,
 		];
 	}

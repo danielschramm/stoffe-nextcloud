@@ -27,6 +27,21 @@ export async function updateFabric(id, values) {
 	return data
 }
 
+export async function renameFabric(id, title) {
+	const { data } = await axios.post(api(`/fabrics/${id}/rename`), { title })
+	return data
+}
+
+export async function listFolders() {
+	const { data } = await axios.get(api('/folders'))
+	return data
+}
+
+export async function setFolder(path) {
+	const { data } = await axios.put(api('/folder'), { path })
+	return data
+}
+
 export async function deleteFabric(id) {
 	await axios.delete(api(`/fabrics/${id}`))
 }
@@ -57,8 +72,8 @@ export function previewUrl(fabric, size = 512) {
 	})
 }
 
-export function filesUrl(fabric) {
-	return generateUrl('/apps/files/?dir=/Stoffe&openfile={id}', { id: fabric.id })
+export function filesUrl(fabric, folderPath = '/Stoffe') {
+	return generateUrl('/apps/files/?dir={dir}&openfile={id}', { dir: folderPath, id: fabric.id })
 }
 
 export function formatPrice(price) {

@@ -3,7 +3,7 @@
 		<NcAppNavigation aria-label="Filter">
 			<template #list>
 				<div class="filters">
-					<NcTextField v-model="filter.text" label="Suche" placeholder="Name, Kommentar, …" :show-trailing-button="filter.text !== ''" trailing-button-icon="close" @trailing-button-click="filter.text = ''">
+					<NcTextField v-model="filter.text" label="Suche" placeholder="Titel, Kommentar, …" :show-trailing-button="filter.text !== ''" trailing-button-icon="close" @trailing-button-click="filter.text = ''">
 						<template #icon>
 							<Magnify :size="20" />
 						</template>
@@ -40,7 +40,7 @@
 				</div>
 			</template>
 			<template #footer>
-				<NcAppNavigationSettings name="Kategorien verwalten">
+				<NcAppNavigationSettings v-if="!folder || folder.canEdit" name="Kategorien verwalten">
 					<CategoryManager :categories="settings.categories"
 						@add="onAddCategory"
 						@rename="onRenameCategory"
@@ -62,7 +62,32 @@
 							{{ filterActive ? `${visible.length} von ${fabrics.length}` : fabrics.length }}
 						</span>
 					</h2>
-					<NcButton variant="primary" :disabled="uploading" @click="$refs.input.click()">
+					<FolderSwitcher :folder="folder" @change="changeFolder" />
+					<span class="stoffe__spacer" />
+					<div class="stoffe__views" role="group" aria-label="Ansicht">
+						<NcButton :variant="view === 'grid' ? 'secondary' : 'tertiary'"
+							:pressed="view === 'grid'"
+							aria-label="Galerie"
+							title="Galerie"
+							@click="setView('grid')">
+							<template #icon>
+								<ViewGrid :size="20" />
+							</template>
+						</NcButton>
+						<NcButton :variant="view === 'table' ? 'secondary' : 'tertiary'"
+							:pressed="view === 'table'"
+							aria-label="Tabelle"
+							title="Tabelle"
+							@click="setView('table')">
+							<template #icon>
+								<TableIcon :size="20" />
+							</template>
+						</NcButton>
+					</div>
+					<NcButton v-if="!folder || folder.canUpload"
+						variant="primary"
+						:disabled="uploading || !folder"
+						@click="$refs.input.click()">
 						<template #icon>
 							<NcLoadingIcon v-if="uploading" :size="20" />
 							<Upload v-else :size="20" />
@@ -77,11 +102,32 @@
 						@change="onPick">
 				</header>
 
+				<NcNoteCard v-if="folder && folder.shared" :type="folder.canEdit ? 'info' : 'warning'">
+					Diesen Ordner hat {{ folder.ownerName }} mit dir geteilt.
+					<template v-if="!folder.canEdit">
+						Du kannst die Stoffe nur ansehen.
+					</template>
+					<template v-else-if="!folder.canUpload">
+						Du kannst Angaben ändern, aber keine Fotos hochladen.
+					</template>
+				</NcNoteCard>
+
 				<NcLoadingIcon v-if="loading" :size="48" class="stoffe__loading" />
+
+				<NcEmptyContent v-else-if="folderMissing"
+					name="Ordner nicht gefunden"
+					:description="folderMissing">
+					<template #icon>
+						<FolderAlert />
+					</template>
+					<template #action>
+						<FolderSwitcher :folder="null" @change="changeFolder" />
+					</template>
+				</NcEmptyContent>
 
 				<NcEmptyContent v-else-if="fabrics.length === 0"
 					name="Noch keine Stoffe"
-					description="Lade Fotos (JPEG) hoch oder ziehe sie hierher. Sie landen im Ordner „Stoffe“ in deinen Dateien.">
+:description="folder && !folder.canUpload ? 'In diesem Ordner liegen noch keine Fotos.' : `Lade Fotos (JPEG) hoch oder ziehe sie hierher. Sie landen im Ordner „${folder ? folder.path : 'Stoffe'}“.`">
 					<template #icon>
 						<ImageMultiple />
 					</template>
@@ -98,6 +144,12 @@
 					</template>
 				</NcEmptyContent>
 
+				<FabricTable v-else-if="view === 'table'"
+					:fabrics="visible"
+					:selected-id="selectedId"
+					@select="selectedId = $event"
+					@update:order="tableOrder = $event" />
+
 				<ul v-else class="stoffe__grid">
 					<li v-for="fabric in visible" :key="fabric.id" class="stoffe__item" :class="{ 'stoffe__item--active': selectedId === fabric.id }">
 						<button class="stoffe__thumb" :title="fabric.name" @click="selectedId = fabric.id">
@@ -105,8 +157,8 @@
 							<span v-if="fabric.price" class="stoffe__price">{{ formatPrice(fabric.price) }}</span>
 							<span v-if="fabric.remnant === 'true'" class="stoffe__badge">Reststück</span>
 						</button>
-						<span class="stoffe__name">{{ fabric.fabricType || displayName(fabric) }}</span>
-						<span class="stoffe__meta">{{ [fabric.category, formatSize(fabric), location(fabric)].filter(Boolean).join(' · ') || 'Noch keine Angaben' }}</span>
+						<span class="stoffe__name">{{ displayName(fabric) }}</span>
+						<span class="stoffe__meta">{{ [fabric.fabricType, fabric.category, formatSize(fabric)].filter(Boolean).join(' · ') || 'Noch keine Angaben' }}</span>
 					</li>
 				</ul>
 			</div>
@@ -119,6 +171,7 @@
 			:last-location="settings.lastLocation"
 			:saving="saving"
 			:has-next="nextId !== null"
+			:folder-path="folder ? folder.path : '/Stoffe'"
 			@close="selectedId = null"
 			@save="onSave"
 			@delete="onDelete" />
@@ -133,15 +186,21 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import FilterRemove from 'vue-material-design-icons/FilterRemove.vue'
+import FolderAlert from 'vue-material-design-icons/FolderAlert.vue'
+import TableIcon from 'vue-material-design-icons/Table.vue'
+import ViewGrid from 'vue-material-design-icons/ViewGrid.vue'
 import ImageMultiple from 'vue-material-design-icons/ImageMultiple.vue'
 import Magnify from 'vue-material-design-icons/Magnify.vue'
 import Upload from 'vue-material-design-icons/Upload.vue'
 import CategoryManager from './components/CategoryManager.vue'
 import FabricSidebar from './components/FabricSidebar.vue'
+import FabricTable from './components/FabricTable.vue'
+import FolderSwitcher from './components/FolderSwitcher.vue'
 import * as api from './api.js'
 import { displayName, formatPrice, formatSize, previewUrl } from './api.js'
 
@@ -166,6 +225,16 @@ const inRange = (value, min, max) => {
 	return n !== null && (lo === null || n >= lo) && (hi === null || n <= hi)
 }
 
+const VIEW_KEY = 'stoffe:view'
+
+const loadView = () => {
+	try {
+		return window.localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'grid'
+	} catch (e) {
+		return 'grid'
+	}
+}
+
 const toNumber = (value) => {
 	const n = parseFloat(String(value).replace(',', '.'))
 	return Number.isNaN(n) ? null : n
@@ -174,13 +243,17 @@ const toNumber = (value) => {
 export default {
 	name: 'App',
 	components: {
-		NcAppContent, NcAppNavigation, NcAppNavigationSettings, NcButton, NcContent, NcEmptyContent, NcLoadingIcon, NcSelect, NcTextField,
-		FilterRemove, ImageMultiple, Magnify, Upload, CategoryManager, FabricSidebar,
+		NcAppContent, NcAppNavigation, NcAppNavigationSettings, NcButton, NcContent, NcEmptyContent, NcLoadingIcon, NcNoteCard, NcSelect, NcTextField,
+		FilterRemove, FolderAlert, ImageMultiple, Magnify, TableIcon, Upload, ViewGrid, CategoryManager, FabricSidebar, FabricTable, FolderSwitcher,
 	},
 
 	data() {
 		return {
 			fabrics: [],
+			folder: null,
+			folderMissing: '',
+			view: loadView(),
+			tableOrder: [],
 			settings: { categories: [], fabricTypes: [], lastLocation: { room: '', cabinet: '', shelf: '' } },
 			filter: emptyFilter(),
 			loading: true,
@@ -235,21 +308,15 @@ export default {
 		},
 
 		nextId() {
-			const index = this.visible.findIndex((f) => f.id === this.selectedId)
-			return index >= 0 && index < this.visible.length - 1 ? this.visible[index + 1].id : null
+			// "Save and next" follows what is on screen: the table's own order or the gallery.
+			const order = this.view === 'table' ? this.tableOrder : this.visible.map((f) => f.id)
+			const index = order.indexOf(this.selectedId)
+			return index >= 0 && index < order.length - 1 ? order[index + 1] : null
 		},
 	},
 
-	async mounted() {
-		try {
-			// One after the other: the first call may create the "Stoffe" folder.
-			this.fabrics = await api.listFabrics()
-			this.settings = await api.getSettings()
-		} catch (e) {
-			showError('Stoffe konnten nicht geladen werden.')
-		} finally {
-			this.loading = false
-		}
+	mounted() {
+		this.load()
 	},
 
 	methods: {
@@ -257,6 +324,49 @@ export default {
 		formatPrice,
 		formatSize,
 		displayName,
+
+		async load() {
+			this.loading = true
+			this.folderMissing = ''
+			try {
+				// One after the other: the first call may create the "Stoffe" folder.
+				const { folder, fabrics } = await api.listFabrics()
+				this.folder = folder
+				this.fabrics = fabrics
+				this.settings = await api.getSettings()
+			} catch (e) {
+				if (e.response?.data?.folderMissing) {
+					this.folder = null
+					this.fabrics = []
+					this.folderMissing = e.response.data.message
+				} else {
+					showError('Stoffe konnten nicht geladen werden.')
+				}
+			} finally {
+				this.loading = false
+			}
+		},
+
+		async changeFolder(path) {
+			try {
+				await api.setFolder(path)
+			} catch (e) {
+				showError(e.response?.data?.message ?? 'Ordner konnte nicht gewählt werden.')
+				return
+			}
+			this.selectedId = null
+			this.resetFilter()
+			await this.load()
+		},
+
+		setView(view) {
+			this.view = view
+			try {
+				window.localStorage.setItem(VIEW_KEY, view)
+			} catch (e) {
+				// Not remembered, but the view still switches.
+			}
+		},
 
 		location(fabric) {
 			return [fabric.room, fabric.cabinet, fabric.shelf].filter(Boolean).join(' / ')
@@ -322,11 +432,15 @@ export default {
 			}
 		},
 
-		async onSave({ values, next }) {
+		async onSave({ values, title, next }) {
 			const nextId = this.nextId
+			const id = this.selectedId
 			this.saving = true
 			try {
-				const updated = await api.updateFabric(this.selectedId, values)
+				if (title && title !== displayName(this.selected)) {
+					this.replace(await api.renameFabric(id, title))
+				}
+				const updated = await api.updateFabric(id, values)
 				this.replace(updated)
 				if (updated.room || updated.cabinet || updated.shelf) {
 					this.settings.lastLocation = { room: updated.room, cabinet: updated.cabinet, shelf: updated.shelf }
@@ -354,7 +468,7 @@ export default {
 				this.fabrics = this.fabrics.filter((f) => f.id !== fabric.id)
 				this.selectedId = null
 			} catch (e) {
-				showError('Löschen fehlgeschlagen.')
+				showError(e.response?.data?.message ?? 'Löschen fehlgeschlagen.')
 			}
 		},
 
@@ -363,13 +477,17 @@ export default {
 		},
 
 		async onAddCategory(name) {
-			this.settings = await api.addCategory(name)
+			try {
+				this.settings = await api.addCategory(name)
+			} catch (e) {
+				showError(e.response?.data?.message ?? 'Kategorie konnte nicht angelegt werden.')
+			}
 		},
 
 		async onRenameCategory({ from, to }) {
 			try {
 				this.settings = await api.renameCategory(from, to)
-				this.fabrics = await api.listFabrics()
+				this.fabrics = (await api.listFabrics()).fabrics
 				if (this.filter.category === from) {
 					this.filter.category = to
 				}
@@ -379,7 +497,11 @@ export default {
 		},
 
 		async onDeleteCategory(name) {
-			this.settings = await api.deleteCategory(name)
+			try {
+				this.settings = await api.deleteCategory(name)
+			} catch (e) {
+				showError(e.response?.data?.message ?? 'Kategorie konnte nicht gelöscht werden.')
+			}
 		},
 	},
 }
@@ -419,11 +541,20 @@ export default {
 .stoffe__header {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	flex-wrap: wrap;
 	gap: 12px;
 	/* leave room for the app navigation toggle */
 	padding-inline-start: 36px;
 	margin-bottom: 16px;
+}
+
+.stoffe__spacer {
+	flex: 1;
+}
+
+.stoffe__views {
+	display: flex;
+	gap: 4px;
 }
 
 .stoffe__header h2 {

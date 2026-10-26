@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace OCA\Stoffe\Service;
 
+use OCA\Stoffe\AppInfo\Application;
 use OCP\Files\File;
+use OCP\IConfig;
 
 /**
- * Category list and last storage location, kept in a JSON file inside the
- * photo folder so it is backed up and synced together with the photos.
- * If the file is missing, the defaults are used.
+ * The category list lives in a JSON file inside the photo folder, so it is
+ * backed up, synced and shared together with the photos. If the file is
+ * missing, the defaults are used. The last storage location is a personal
+ * convenience and kept as a user preference, so people sharing a folder
+ * don't overwrite each other's.
  */
 class SettingsService {
 	public const FILE_NAME = '.stoffe.json';
@@ -28,6 +32,7 @@ class SettingsService {
 
 	public function __construct(
 		private PhotoFolder $photoFolder,
+		private IConfig $config,
 	) {
 	}
 
@@ -58,7 +63,11 @@ class SettingsService {
 	 * @return array{room:string,cabinet:string,shelf:string}
 	 */
 	public function getLastLocation(string $userId): array {
-		$raw = $this->load($userId)['lastLocation'] ?? [];
+		$raw = json_decode($this->config->getUserValue($userId, Application::APP_ID, 'lastLocation', ''), true);
+		if (!is_array($raw)) {
+			// Older versions kept it in the folder's settings file.
+			$raw = $this->load($userId)['lastLocation'] ?? [];
+		}
 		return [
 			'room' => (string)($raw['room'] ?? ''),
 			'cabinet' => (string)($raw['cabinet'] ?? ''),
@@ -76,7 +85,7 @@ class SettingsService {
 			'shelf' => $values['shelf'] ?? '',
 		];
 		if (implode('', $location) !== '' && $location !== $this->getLastLocation($userId)) {
-			$this->store($userId, ['lastLocation' => $location]);
+			$this->config->setUserValue($userId, Application::APP_ID, 'lastLocation', json_encode($location, JSON_UNESCAPED_UNICODE));
 		}
 	}
 
