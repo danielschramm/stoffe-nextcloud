@@ -17,6 +17,11 @@ Die Galerie ist nach allen Angaben filterbar (Suche in Titel und Kommentar,
 Lagerort, Stoffart, Kategorie, Preisbereich, Mindestlänge und -breite,
 Reststück, „ohne Angabe“).
 
+Fotos lädt man über den Knopf „Hochladen“ oder per Ziehen und Ablegen in die
+Galerie hoch; nur JPEG wird angenommen. Mit **„Speichern und weiter“** in der
+Seitenleiste arbeitet man neue Fotos nacheinander ab, in der Reihenfolge, die
+Galerie oder Tabelle gerade zeigen.
+
 ## Tabellenansicht
 
 Oben rechts lässt sich zwischen Galerie und Tabelle wechseln. In der Tabelle:
@@ -66,6 +71,10 @@ Getestet mit Nextcloud 32 und 35, geteilte Ordner mit 35 (unterstützt laut `inf
 
 ## Entwicklung
 
+Die Spezifikation (Ziel, Datenmodell, API, Entscheidungen, Tests, Grenzen)
+steht in [SPEC.md](SPEC.md). Hinweise für die Arbeit mit KI-Assistenten
+stehen in [CLAUDE.md](CLAUDE.md).
+
 ```bash
 npm ci
 npm run build      # erzeugt js/ und css/
@@ -89,9 +98,12 @@ Der Workflow setzt dann den Tag `v<version>` aus `info.xml` selbst.
 - `lib/Service/XmpService.php` – XMP im JPEG lesen und schreiben
 - `lib/Service/FabricService.php` – Fotos auflisten, hochladen, Angaben speichern, Kategorien umbenennen
 - `lib/Service/PhotoFolder.php` – gewählter Ordner, eigene und geteilte Ordner
-- `lib/Service/SettingsService.php` – Kategorien (`.stoffe.json`) und letzter Lagerort
+- `lib/Service/SettingsService.php` – Kategorien (`.stoffe.json`), Stoffarten und letzter Lagerort
 - `lib/Controller/` – REST-API unter `/apps/stoffe/api/…`
-- `src/` – Oberfläche (Vue 3, @nextcloud/vue 9)
+- `src/App.vue` – Galerie, Filter, Hochladen, Wechsel Galerie/Tabelle
+- `src/components/` – Seitenleiste, Tabelle, Kategorienverwaltung, Ordnerwahl
+- `scripts/package.sh` – baut das Release-Archiv
+- `.github/workflows/release.yml` – Release-Workflow
 
 ## Lizenz
 
