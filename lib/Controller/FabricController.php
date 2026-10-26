@@ -6,17 +6,20 @@ namespace OCA\Stoffe\Controller;
 
 use OCA\Stoffe\AppInfo\Application;
 use OCA\Stoffe\Service\FabricService;
+use OCA\Stoffe\Service\PhotoFolder;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Controller;
 use OCP\Files\NotFoundException;
+use OCP\Files\NotPermittedException;
 use OCP\IRequest;
 
 class FabricController extends Controller {
 	public function __construct(
 		IRequest $request,
 		private FabricService $service,
+		private PhotoFolder $photoFolder,
 		private ?string $userId,
 	) {
 		parent::__construct(Application::APP_ID, $request);
@@ -24,7 +27,18 @@ class FabricController extends Controller {
 
 	#[NoAdminRequired]
 	public function index(): JSONResponse {
-		return new JSONResponse($this->service->list($this->userId));
+		try {
+			$folder = $this->photoFolder->get($this->userId);
+		} catch (NotFoundException) {
+			return new JSONResponse([
+				'message' => 'Der Ordner „' . $this->photoFolder->getPath($this->userId) . '“ ist nicht mehr da. Bitte wähle einen anderen.',
+				'folderMissing' => true,
+			], Http::STATUS_NOT_FOUND);
+		}
+		return new JSONResponse([
+			'folder' => $this->photoFolder->describe($this->userId, $folder),
+			'fabrics' => $this->service->list($this->userId),
+		]);
 	}
 
 	#[NoAdminRequired]
@@ -56,23 +70,35 @@ class FabricController extends Controller {
 
 	#[NoAdminRequired]
 	public function update(int $id): JSONResponse {
-		try {
-			return new JSONResponse($this->service->update($this->userId, $id, $this->request->getParams()));
-		} catch (NotFoundException) {
-			return new JSONResponse(['message' => 'Foto nicht gefunden.'], Http::STATUS_NOT_FOUND);
-		} catch (\InvalidArgumentException|\RuntimeException $e) {
-			return new JSONResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
-		}
+		return $this->respond(fn () => $this->service->update($this->userId, $id, $this->request->getParams()));
+	}
+
+	#[NoAdminRequired]
+	public function rename(int $id, string $title): JSONResponse {
+		return $this->respond(fn () => $this->service->rename($this->userId, $id, $title));
 	}
 
 	#[NoAdminRequired]
 	public function destroy(int $id): JSONResponse {
-		try {
+		return $this->respond(function () use ($id) {
 			$this->service->delete($this->userId, $id);
+			return [];
+		});
+	}
+
+	/**
+	 * Maps the service's exceptions to readable error responses.
+	 */
+	private function respond(callable $action): JSONResponse {
+		try {
+			return new JSONResponse($action());
 		} catch (NotFoundException) {
 			return new JSONResponse(['message' => 'Foto nicht gefunden.'], Http::STATUS_NOT_FOUND);
+		} catch (NotPermittedException $e) {
+			return new JSONResponse(['message' => $e->getMessage() ?: 'Dafür fehlen dir die Rechte.'], Http::STATUS_FORBIDDEN);
+		} catch (\InvalidArgumentException|\RuntimeException $e) {
+			return new JSONResponse(['message' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		}
-		return new JSONResponse([], Http::STATUS_NO_CONTENT);
 	}
 
 	/**
