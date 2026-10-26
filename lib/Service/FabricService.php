@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Stoffe\Service;
 
 use OCP\Files\File;
+use OCP\Files\Folder;
 use OCP\Files\NotFoundException;
 use OCP\Files\NotPermittedException;
 use OCP\ICache;
@@ -14,7 +15,8 @@ use Psr\Log\LoggerInterface;
 /**
  * Fabric photos are plain JPEG files (phone photos) in the collection folder
  * (see PhotoFolder); the file name is the fabric's title and the fabric
- * fields live only in the files' XMP data. The memory cache just
+ * fields live only in the files' XMP data. Detail photos sit in a folder
+ * named like the photo (see DetailService). The memory cache just
  * saves re-reading unchanged files and can be lost at any time.
  */
 class FabricService {
@@ -26,6 +28,7 @@ class FabricService {
 	public function __construct(
 		private PhotoFolder $photoFolder,
 		private XmpService $xmp,
+		private DetailService $details,
 		private SettingsService $settings,
 		private LoggerInterface $logger,
 		ICacheFactory $cacheFactory,
@@ -37,11 +40,19 @@ class FabricService {
 	 * @return list<array<string,mixed>>
 	 */
 	public function list(string $userId): array {
-		$fabrics = [];
+		$photos = [];
+		$folders = [];
 		foreach ($this->photoFolder->get($userId)->getDirectoryListing() as $node) {
 			if ($node instanceof File && $node->getMimetype() === self::MIME) {
-				$fabrics[] = $this->serialize($node, $this->readValues($node));
+				$photos[] = $node;
+			} elseif ($node instanceof Folder) {
+				$folders[$node->getName()] = $node;
 			}
+		}
+		$fabrics = [];
+		foreach ($photos as $photo) {
+			$details = $folders[DetailService::folderName($photo->getName())] ?? null;
+			$fabrics[] = $this->serialize($photo, $this->readValues($photo), count($this->details->files($details)));
 		}
 		usort($fabrics, fn (array $a, array $b) => $b['mtime'] <=> $a['mtime']);
 		return $fabrics;
@@ -63,13 +74,13 @@ class FabricService {
 			throw new NotPermittedException('In diesem Ordner darfst du keine Fotos hochladen.');
 		}
 		try {
-			$file = $folder->newFile($folder->getNonExistingName($this->sanitizeName($originalName)), $content);
+			$file = $folder->newFile($folder->getNonExistingName(self::sanitizeName($originalName)), $content);
 		} finally {
 			if (is_resource($content)) {
 				fclose($content);
 			}
 		}
-		return $this->serialize($file, $this->readValues($file));
+		return $this->get($file);
 	}
 
 	/**
@@ -97,11 +108,12 @@ class FabricService {
 				$this->logger->info('Could not add category to list', ['exception' => $e]);
 			}
 		}
-		return $this->serialize($file, $values);
+		return $this->serialize($file, $values, count($this->details->files($this->details->find($file))));
 	}
 
 	/**
 	 * Renames the photo; the file name (without extension) is the fabric's title.
+	 * The folder with the detail photos is renamed along with it.
 	 *
 	 * @return array<string,mixed>
 	 */
@@ -118,7 +130,7 @@ class FabricService {
 		$extension = pathinfo($file->getName(), PATHINFO_EXTENSION) ?: 'jpg';
 		$newName = $title . '.' . $extension;
 		if ($newName === $file->getName()) {
-			return $this->serialize($file, $this->readValues($file));
+			return $this->get($file);
 		}
 		$parent = $file->getParent();
 		if (!$file->isUpdateable() || !$parent->isCreatable()) {
@@ -128,11 +140,20 @@ class FabricService {
 		if (strcasecmp($newName, $file->getName()) !== 0 && $this->nameTaken($parent, $newName)) {
 			throw new \InvalidArgumentException('Es gibt schon einen Stoff mit dem Titel „' . $title . '“.');
 		}
-		$renamed = $file->move($parent->getPath() . '/' . $newName);
+		if (!$this->details->folderNameFree($parent, $newName, $file)) {
+			throw new \InvalidArgumentException('Im Ordner gibt es schon einen Unterordner „' . $title . '“.');
+		}
+		$undoFolder = $this->details->rename($file, $newName);
+		try {
+			$renamed = $file->move($parent->getPath() . '/' . $newName);
+		} catch (\Throwable $e) {
+			$undoFolder();
+			throw $e;
+		}
 		if (!$renamed instanceof File) {
 			throw new \RuntimeException('Umbenennen fehlgeschlagen.');
 		}
-		return $this->serialize($renamed, $this->readValues($renamed));
+		return $this->get($renamed);
 	}
 
 	public function delete(string $userId, int $id): void {
@@ -140,10 +161,19 @@ class FabricService {
 		if (!$file->isDeletable()) {
 			throw new NotPermittedException('Dieses Foto darfst du nicht löschen.');
 		}
+		// Details first: if they cannot go, the fabric stays complete.
+		$this->details->deleteFolder($file);
 		$file->delete();
 	}
 
-	private function nameTaken(\OCP\Files\Folder $folder, string $name): bool {
+	/**
+	 * @return array<string,mixed>
+	 */
+	private function get(File $file): array {
+		return $this->serialize($file, $this->readValues($file), count($this->details->files($this->details->find($file))));
+	}
+
+	private function nameTaken(Folder $folder, string $name): bool {
 		foreach ($folder->getDirectoryListing() as $node) {
 			if (strcasecmp($node->getName(), $name) === 0) {
 				return true;
@@ -235,7 +265,7 @@ class FabricService {
 		return in_array(strtolower($value), ['true', '1', 'ja', 'yes', 'on'], true);
 	}
 
-	private function getFile(string $userId, int $id): File {
+	public function getFile(string $userId, int $id): File {
 		$node = $this->photoFolder->get($userId)->getFirstNodeById($id);
 		if (!$node instanceof File) {
 			throw new NotFoundException();
@@ -243,17 +273,24 @@ class FabricService {
 		return $node;
 	}
 
-	private function sanitizeName(string $name): string {
+	/**
+	 * A safe file name for an uploaded JPEG, always ending in .jpg/.jpeg so
+	 * that the name of a photo never equals the name of its detail folder.
+	 */
+	public static function sanitizeName(string $name, string $fallback = 'stoff'): string {
 		$name = trim(basename(str_replace('\\', '/', $name)));
 		$name = preg_replace('/[\x00-\x1f\/:*?"<>|]/u', '_', $name) ?? '';
-		return $name === '' || $name[0] === '.' ? 'stoff-' . date('Ymd-His') . '.jpg' : $name;
+		if ($name === '' || $name[0] === '.') {
+			return $fallback . '-' . date('Ymd-His') . '.jpg';
+		}
+		return preg_match('/\.jpe?g$/i', $name) ? $name : $name . '.jpg';
 	}
 
 	/**
 	 * @param array<string,string> $values
 	 * @return array<string,mixed>
 	 */
-	private function serialize(File $file, array $values): array {
+	private function serialize(File $file, array $values, int $detailCount = 0): array {
 		// Photos saved before a field existed simply don't have it yet.
 		$values = [...array_fill_keys(XmpService::FIELDS, ''), ...$values];
 		$values['remnant'] = $this->isTrue($values['remnant']) ? 'true' : 'false';
@@ -265,6 +302,7 @@ class FabricService {
 			'mtime' => $file->getMTime(),
 			'canEdit' => $file->isUpdateable(),
 			'canDelete' => $file->isDeletable(),
+			'detailCount' => $detailCount,
 			...$values,
 		];
 	}

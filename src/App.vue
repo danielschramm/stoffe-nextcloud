@@ -156,6 +156,10 @@
 							<img :src="previewUrl(fabric)" :alt="fabric.name" loading="lazy">
 							<span v-if="fabric.price" class="stoffe__price">{{ formatPrice(fabric.price) }}</span>
 							<span v-if="fabric.remnant === 'true'" class="stoffe__badge">Reststück</span>
+							<span v-if="fabric.detailCount" class="stoffe__details" :title="`${fabric.detailCount} Detailbilder`">
+								<ImageMultiple :size="16" />
+								{{ fabric.detailCount }}
+							</span>
 						</button>
 						<span class="stoffe__name">{{ displayName(fabric) }}</span>
 						<span class="stoffe__meta">{{ [fabric.fabricType, fabric.category, formatSize(fabric)].filter(Boolean).join(' · ') || 'Noch keine Angaben' }}</span>
@@ -174,7 +178,8 @@
 			:folder-path="folder ? folder.path : '/Stoffe'"
 			@close="selectedId = null"
 			@save="onSave"
-			@delete="onDelete" />
+			@delete="onDelete"
+			@update:detail-count="selected.detailCount = $event" />
 	</NcContent>
 </template>
 
@@ -460,7 +465,8 @@ export default {
 		},
 
 		async onDelete(fabric) {
-			if (!confirm(`„${displayName(fabric)}“ wirklich löschen? Das Foto landet im Papierkorb.`)) {
+			const details = fabric.detailCount ? ` samt ${fabric.detailCount === 1 ? 'Detailbild' : `${fabric.detailCount} Detailbildern`}` : ''
+			if (!confirm(`„${displayName(fabric)}“${details} wirklich löschen? Das Foto landet im Papierkorb.`)) {
 				return
 			}
 			try {
@@ -625,6 +631,20 @@ export default {
 	background: var(--color-main-background);
 	color: var(--color-main-text);
 	font-weight: bold;
+}
+
+.stoffe__details {
+	position: absolute;
+	inset-inline-start: 6px;
+	bottom: 6px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border-radius: var(--border-radius-pill);
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font-size: 0.85em;
 }
 
 .stoffe__badge {

@@ -128,7 +128,10 @@ Frontend über `@nextcloud/axios`). Fehler kommen als `{ "message": "…" }`.
 | `POST /fabrics` | `upload` | multipart `photos[]` | 201 `{ uploaded: [Fabric], errors: [{name, message}] }`, 400 wenn nichts ging |
 | `PUT /fabrics/{id}` | `update` | alle Felder aus 3.1 | `Fabric` |
 | `POST /fabrics/{id}/rename` | `rename` | `{ title }` | `Fabric` (neuer `name`) |
-| `DELETE /fabrics/{id}` | `destroy` | – | `{}`; Datei geht in den Papierkorb |
+| `DELETE /fabrics/{id}` | `destroy` | – | `{}`; Datei und Detailordner gehen in den Papierkorb |
+| `GET /fabrics/{id}/details` | `details` | – | `{ details: [Detail], canUpload }`, nach Name sortiert |
+| `POST /fabrics/{id}/details` | `uploadDetails` | multipart `photos[]` | 201 `{ uploaded: [Detail], errors: [{name, message}] }`, 400 wenn nichts ging |
+| `DELETE /fabrics/{id}/details/{detailId}` | `destroyDetail` | – | `{}`; nur Dateien direkt im Detailordner dieses Stoffs |
 | `GET /settings` | `SettingsController::index` | – | `Settings` |
 | `POST /categories` | `addCategory` | `{ name }` | `Settings` |
 | `POST /categories/rename` | `renameCategory` | `{ from, to }` | `Settings` |
@@ -139,7 +142,9 @@ Frontend über `@nextcloud/axios`). Fehler kommen als `{ "message": "…" }`.
 Objekte:
 
 - **Fabric**: `id` (Nextcloud-Datei-ID), `name` (Dateiname mit Endung),
-  `mime`, `size`, `mtime`, `canEdit`, `canDelete` und alle Felder aus 3.1.
+  `mime`, `size`, `mtime`, `canEdit`, `canDelete`, `detailCount` (Anzahl
+  der Detailbilder) und alle Felder aus 3.1.
+- **Detail**: `id`, `name`, `size`, `mtime`, `canDelete`.
 - **Settings**: `categories`, `fabricTypes`, `lastLocation {room, cabinet, shelf}`.
 - **Folder**: `path`, `name`, `owner`, `ownerName`, `shared`, `canUpload`, `canEdit`.
 
@@ -162,6 +167,7 @@ Vorschaubilder kommen aus dem Nextcloud-Core:
 | `Controller/PageController.php` | liefert die Seite `templates/main.php` und lädt `js/stoffe-main.mjs` |
 | `Controller/FabricController.php` | Fotos auflisten, hochladen, speichern, umbenennen, löschen; übersetzt Ausnahmen in 400/403/404 |
 | `Controller/SettingsController.php` | Kategorien, Ordnerwahl |
+| `Service/DetailService.php` | Detailordner finden, anlegen, mit umbenennen und löschen; Detailbilder auflisten, hochladen, löschen |
 | `Service/FabricService.php` | Kernlogik: Liste, Upload, Werte prüfen, Umbenennen, Kategorie in allen Fotos umbenennen, Cache |
 | `Service/XmpService.php` | JPEG-Segmente lesen/schreiben, XMP-Paket bauen |
 | `Service/PhotoFolder.php` | gewählter Ordner, Kandidaten inkl. Freigaben, Rechte |
@@ -174,7 +180,8 @@ Vorschaubilder kommen aus dem Nextcloud-Core:
 | `main.js` | mountet `App` auf `#stoffe` |
 | `api.js` | alle API-Aufrufe, `FIELDS`, Formatierer (`formatPrice`, `formatSize`, `displayName`), URLs für Vorschau und Dateien-App |
 | `App.vue` | Layout (`NcContent`), Filter in der linken Navigation, Galerie, Hochladen (Knopf und Ziehen/Ablegen), Wechsel Galerie/Tabelle, „Speichern und weiter“ in der sichtbaren Reihenfolge |
-| `components/FabricSidebar.vue` | Seitenleiste: Titel, Lagerort (vorausgefüllt), Preis, Maße, Reststück, Stoffart, Kategorie, Kommentar, Löschen, „In Dateien öffnen“ |
+| `components/FabricSidebar.vue` | Seitenleiste: Titel, Lagerort (vorausgefüllt), Preis, Maße, Reststück, Stoffart, Kategorie, Kommentar, Detailbilder, Löschen, „In Dateien öffnen“ |
+| `components/DetailImages.vue` | Detailbilder in der Seitenleiste: Vorschaubilder, Hinzufügen (Knopf und Ziehen/Ablegen), Großansicht (`NcModal`) mit Blättern und Löschen |
 | `components/FabricTable.vue` | Tabelle: Spaltenauswahl, Spaltenfilter (Text „enthält“, Zahlen `150`, `>=140`, `<20`, `100-200`), Mehrfachsortierung mit Umschalttaste |
 | `components/CategoryManager.vue` | Kategorien anlegen, umbenennen, löschen (in den Einstellungen der Navigation) |
 | `components/FolderSwitcher.vue` | Ordnerwahl im Kopf |
@@ -226,7 +233,8 @@ docker exec -u www-data nc php occ app:enable stoffe
   ansehen.
 
 Checkliste vor einem Release: Hochladen (JPEG ok, PNG abgelehnt), Speichern
-aller Felder, Umbenennen (auch Konflikt), Kategorie anlegen/umbenennen/löschen,
+aller Felder, Umbenennen (auch Konflikt, Detailordner mit umbenannt),
+Detailbilder hinzufügen/ansehen/löschen, Kategorie anlegen/umbenennen/löschen,
 Filter und Tabelle, geteilter Ordner mit Lese- und Schreibrecht, Update von
 der Vorversion mit vorhandenen Fotos.
 
@@ -249,26 +257,28 @@ der Vorversion mit vorhandenen Fotos.
 | 0.2 | Galerie, Seitenleiste, Filter, Kategorien, XMP-Speicherung |
 | 0.3.0 / 0.3.1 | Länge, Breite, Reststück; Filter nach Mindestmaßen; Release-Workflow |
 | 0.4.0 | Titel = Dateiname (Umbenennen, Suche), Tabellenansicht, wählbare und geteilte Ordner mit Lese-/Schreibrecht, Ordnerwahl und letzter Lagerort pro Nutzer |
-| 0.5.0 (geplant) | Detailbilder, siehe 10 |
+| 0.5.0 | Detailbilder je Stoff im Ordner neben dem Foto, siehe 10 |
 
-## 10. Detailbilder (geplant, 0.5.0)
+## 10. Detailbilder (`DetailService`, seit 0.5.0)
 
-In Arbeit, noch nicht in `main`. Geplanter Stand:
-
-- Zu jedem Stoff kann es weitere Fotos geben. Sie liegen in einem Ordner neben
-  der Hauptdatei mit demselben Namen ohne `.jpg`/`.jpeg`
-  (`Stoffe/Blauer Jersey.jpg` → `Stoffe/Blauer Jersey/`).
-- Der Ordner wird beim Umbenennen des Stoffs mit umbenannt und beim Löschen
-  mit in den Papierkorb gelegt.
-- Hauptfotos bekommen beim Hochladen immer die Endung `.jpg`, falls sie keine haben.
-- Geplante Routen: `GET /fabrics/{id}/details`
-  (`{ details: [{id, name, size, mtime, canDelete}], canUpload }`),
-  `POST /fabrics/{id}/details` (multipart `photos[]`, Antwort wie beim
-  Upload), `DELETE /fabrics/{id}/details/{detailId}`. `GET /fabrics` liefert
-  je Stoff zusätzlich `detailCount`.
-
-Nach dem Merge: diesen Abschnitt in „umgesetzt“ ändern, die Routen in die
-Tabelle in 5 übernehmen und die Tabelle in 9 anpassen.
+- Zu jedem Stoff kann es weitere JPEG-Fotos geben (Nahaufnahmen einzelner
+  Motive). Sie liegen in einem Ordner neben der Hauptdatei mit demselben
+  Namen ohne `.jpg`/`.jpeg` (`Stoffe/Blauer Jersey.jpg` → `Stoffe/Blauer Jersey/`).
+  Der Ordner entsteht mit dem ersten Detailbild; auch Dateien, die per
+  Dateien-App oder Sync dort landen, zählen. Detailbilder haben keine XMP-Angaben.
+- Unterordner werden in `GET /fabrics` nie als Stoffe gelistet. Nur JPEG
+  direkt im Detailordner zählt.
+- Umbenennen: Ist der neue Name schon als anderer Unterordner vergeben
+  (ohne Rücksicht auf Groß-/Kleinschreibung), gibt es einen Fehler. Erst wird
+  der Ordner verschoben, dann das Foto; scheitert das Foto, wird der Ordner
+  zurückbenannt.
+- Löschen: erst der Detailordner, dann das Foto; fehlt das Recht für den
+  Ordner, bleibt der Stoff vollständig.
+- Hauptfotos bekommen beim Hochladen immer die Endung `.jpg`, falls sie
+  keine haben, damit Foto und Ordner nie gleich heißen.
+- Rechte: `canUpload` ist `isCreatable` des Detailordners oder, solange es
+  ihn nicht gibt, des Stoffe-Ordners. Mit Leserecht sieht man die
+  Detailbilder nur.
 
 ## 11. Bekannte Grenzen
 

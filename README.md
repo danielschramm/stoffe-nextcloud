@@ -22,6 +22,21 @@ Galerie hoch; nur JPEG wird angenommen. Mit **„Speichern und weiter“** in de
 Seitenleiste arbeitet man neue Fotos nacheinander ab, in der Reihenfolge, die
 Galerie oder Tabelle gerade zeigen.
 
+## Detailbilder
+
+Hat ein Stoff mehrere Motive, lassen sich in der Seitenleiste unter
+**Detailbilder** beliebig viele Nahaufnahmen (JPEG) hinzufügen, per Knopf oder
+indem man sie auf den Bereich zieht. Ein Klick öffnet das Bild groß, mit
+Blättern, Löschen und „In Dateien öffnen“. Galerie-Kacheln zeigen die Anzahl,
+die Tabelle hat dafür die Spalte „Detailbilder“.
+
+Die Detailbilder liegen in einem Ordner neben dem Foto, der so heißt wie das
+Foto ohne Endung: zu `Rosen.jpg` gehört der Ordner `Rosen/`. Er entsteht mit
+dem ersten Detailbild. Wird der Titel geändert, benennt die App den Ordner mit
+um; wird der Stoff gelöscht, wandert der Ordner mit in den Papierkorb.
+Unterordner erscheinen nie als eigene Stoffe. Man kann Detailbilder auch
+direkt in Nextcloud-Dateien in diesen Ordner legen.
+
 ## Tabellenansicht
 
 Oben rechts lässt sich zwischen Galerie und Tabelle wechseln. In der Tabelle:
@@ -41,7 +56,7 @@ die App zeigt: den eigenen „Stoffe“-Ordner, einen geteilten Ordner oder eine
 beliebigen anderen. Geteilte Ordner werden angeboten, wenn sie „Stoff“ im
 Namen tragen oder schon eine `.stoffe.json` enthalten.
 
-- Mit Bearbeitungsrecht kann man Angaben ändern, umbenennen und hochladen.
+- Mit Bearbeitungsrecht kann man Angaben ändern, umbenennen und Fotos sowie Detailbilder hochladen.
 - Mit Leserecht sieht man alles, kann aber nichts ändern; die App sagt das.
 - Die Kategorienliste gehört zum Ordner und gilt für alle, die ihn nutzen.
   Der letzte Lagerort und der gewählte Ordner sind pro Nutzer.
@@ -97,11 +112,12 @@ Der Workflow setzt dann den Tag `v<version>` aus `info.xml` selbst.
 - `appinfo/` – App-Metadaten und Routen
 - `lib/Service/XmpService.php` – XMP im JPEG lesen und schreiben
 - `lib/Service/FabricService.php` – Fotos auflisten, hochladen, Angaben speichern, Kategorien umbenennen
+- `lib/Service/DetailService.php` – Detailbilder im Ordner neben dem Foto
 - `lib/Service/PhotoFolder.php` – gewählter Ordner, eigene und geteilte Ordner
 - `lib/Service/SettingsService.php` – Kategorien (`.stoffe.json`), Stoffarten und letzter Lagerort
 - `lib/Controller/` – REST-API unter `/apps/stoffe/api/…`
 - `src/App.vue` – Galerie, Filter, Hochladen, Wechsel Galerie/Tabelle
-- `src/components/` – Seitenleiste, Tabelle, Kategorienverwaltung, Ordnerwahl
+- `src/components/` – Seitenleiste, Detailbilder, Tabelle, Kategorienverwaltung, Ordnerwahl
 - `scripts/package.sh` – baut das Release-Archiv
 - `.github/workflows/release.yml` – Release-Workflow
 

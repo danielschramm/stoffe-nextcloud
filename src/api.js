@@ -10,16 +10,33 @@ export async function listFabrics() {
 	return data
 }
 
-export async function uploadFabrics(files, onProgress) {
+async function uploadPhotos(path, files, onProgress) {
 	const form = new FormData()
 	for (const file of files) {
 		form.append('photos[]', file, file.name)
 	}
-	const { data } = await axios.post(api('/fabrics'), form, {
+	const { data } = await axios.post(api(path), form, {
 		onUploadProgress: (e) => e.total && onProgress?.(Math.round((e.loaded / e.total) * 100)),
 		validateStatus: (s) => s === 201 || s === 400,
 	})
 	return data
+}
+
+export function uploadFabrics(files, onProgress) {
+	return uploadPhotos('/fabrics', files, onProgress)
+}
+
+export async function listDetails(id) {
+	const { data } = await axios.get(api(`/fabrics/${id}/details`))
+	return data
+}
+
+export function uploadDetails(id, files, onProgress) {
+	return uploadPhotos(`/fabrics/${id}/details`, files, onProgress)
+}
+
+export async function deleteDetail(id, detailId) {
+	await axios.delete(api(`/fabrics/${id}/details/${detailId}`))
 }
 
 export async function updateFabric(id, values) {
